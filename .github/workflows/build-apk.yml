@@ -57,6 +57,24 @@ jobs:
             npx cap sync android
           fi
 
+      # 👈 استپ جدید: تزریق خودکار مجوز دوربین به AndroidManifest
+      - name: Inject Camera Permission
+        run: |
+          MANIFEST_PATH=""
+          if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
+            MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          elif [ -f "source/android/app/src/main/AndroidManifest.xml" ]; then
+            MANIFEST_PATH="source/android/app/src/main/AndroidManifest.xml"
+          fi
+
+          if [ -n "$MANIFEST_PATH" ]; then
+            echo "Injecting Camera permissions into $MANIFEST_PATH"
+            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" />\n    <uses-feature android:name="android.hardware.camera.autofocus" />' "$MANIFEST_PATH"
+          else
+            echo "AndroidManifest.xml not found!"
+            exit 1
+          fi
+
       - name: Build APK with Gradle
         run: |
           if [ -d "android" ]; then
