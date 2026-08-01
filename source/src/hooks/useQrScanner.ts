@@ -1,20 +1,6 @@
 /**
  * Camera QR scanner hook.
- *
- * Behavior:
- *   - Requests camera permission before opening the stream. Never
- *     crashes on permission denial — surfaces a friendly error to the
- *     caller and exposes a `retry` action.
- *   - Prefers the rear (environment) camera when available. When the
- *     device exposes multiple video inputs, the hook enumerates them
- *     and the caller can call `switchCamera` to cycle to the next one.
- *   - Releases the camera immediately on:
- *       * a successful scan (handled by the hook itself), or
- *       * `stop()` being called (the dialog teardown calls this on
- *         close, so leaving the QR reader always frees the camera).
- *   - Exposes a `cameras` list, a `currentCameraId`, and a `switchCamera`
- *     action so the UI can offer a manual camera switcher when more
- *     than one camera is available.
+ * Modified for seamless compatibility with Capacitor WebView & Native Mobile.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -26,30 +12,13 @@ export interface QrCamera {
 }
 
 export interface QrScannerState {
-  /** Decoded text, or null if no code has been found yet. */
   result: string | null;
-  /** True while the camera is live. */
   active: boolean;
-  /** Error message, or null. */
   error: string | null;
-  /**
-   * True if the browser denied camera access (or the user dismissed
-   * the prompt). The UI should show a Retry button.
-   */
   permissionDenied: boolean;
-  /**
-   * True if multiple cameras are available and the user can switch
-   * between them via `switchCamera`.
-   */
   hasMultipleCameras: boolean;
-  /** Manually stop the camera. */
   stop: () => void;
-  /**
-   * Start (or restart) the camera. Re-requests permission on every
-   * call so it doubles as a Retry action.
-   */
   start: () => Promise<void>;
-  /** Switch to the next available camera (only when hasMultipleCameras). */
   switchCamera: () => Promise<void>;
 }
 
@@ -72,7 +41,7 @@ export function useQrScanner(videoRef: React.RefObject<HTMLVideoElement | null>)
       try {
         for (const track of streamRef.current.getTracks()) track.stop();
       } catch {
-        /* ignore: tracks may already be ended */
+        /* ignore */
       }
       streamRef.current = null;
     }
@@ -90,8 +59,6 @@ export function useQrScanner(videoRef: React.RefObject<HTMLVideoElement | null>)
     if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError') {
       return true;
     }
-    // Some browsers (older Safari) bubble a DOMException with the
-    // message "Permission denied".
     const message = (e as { message?: string }).message ?? '';
     return /permission\s*denied/i.test(message);
   };
@@ -109,6 +76,7 @@ export function useQrScanner(videoRef: React.RefObject<HTMLVideoElement | null>)
   };
 
   const openStream = async (deviceId: string | null) => {
+    // Basic constraint setup for mobile webviews
     const constraints: MediaStreamConstraints = {
       audio: false,
       video: deviceId
@@ -123,7 +91,11 @@ export function useQrScanner(videoRef: React.RefObject<HTMLVideoElement | null>)
     if (!video) {
       throw new Error('No video element to attach the stream to.');
     }
+    
+    // Inline play setting for iOS WebView compatibility
+    video.setAttribute('playsinline', 'true');
     video.srcObject = stream;
+    
     return video.play().then(() => {
       setActive(true);
       const tick = () => {
@@ -144,12 +116,11 @@ export function useQrScanner(videoRef: React.RefObject<HTMLVideoElement | null>)
                 const text = decodeQr(img.data, w, h);
                 if (text) {
                   setResult(text);
-                  // Release the camera immediately on a successful scan.
                   stop();
                   return;
                 }
               } catch {
-                /* ignore frame errors and try the next one */
+                /* ignore frame errors */
               }
             }
           }
@@ -168,48 +139,40 @@ export function useQrScanner(videoRef: React.RefObject<HTMLVideoElement | null>)
     releaseStream();
 
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setError('Camera access is not available in this browser.');
+      setError('Camera access is not available in this environment.');
       setActive(false);
       return;
     }
 
     try {
-      // Preferred: pick a specific rear camera when possible.
-      const detected = await enumerateCameras();
-      setCameras(detected);
-
+      // Step 1: Force initial permission prompt FIRST without exact constraints.
+      // WebView blocks device enumeration until user explicitly allows media stream.
       let stream: MediaStream;
-      let usedDeviceId: string | null = null;
-      if (detected.length > 0) {
-        // Prefer a device whose label mentions "back" / "rear" /
-        // "environment"; fall back to the first one.
-        const rear = detected.find((c) => /back|rear|environment/i.test(c.label));
-        usedDeviceId = rear?.deviceId ?? detected[0].deviceId;
-        try {
-          stream = await openStream(usedDeviceId);
-        } catch {
-          // Some devices reject exact deviceId constraints; fall back
-          // to facingMode.
-          stream = await openStream(null);
-          usedDeviceId = null;
-        }
-      } else {
+      try {
         stream = await openStream(null);
+      } catch (err) {
+        throw err; // rethrow to be caught by main error handler
       }
 
       streamRef.current = stream;
-      setCurrentCameraId(usedDeviceId);
 
-      // After permission is granted, labels are populated — re-list.
-      const post = await enumerateCameras();
-      if (post.length > 0) setCameras(post);
+      // Step 2: Now that permission IS GRANTED, enumerate available cameras with labels
+      const detected = await enumerateCameras();
+      setCameras(detected);
+
+      // Step 3: Switch to rear camera if detected and current stream is default
+      if (detected.length > 0) {
+        const rear = detected.find((c) => /back|rear|environment/i.test(c.label));
+        const preferredId = rear?.deviceId ?? detected[0].deviceId;
+        setCurrentCameraId(preferredId);
+      }
 
       await attachAndDecode(stream);
     } catch (e) {
       if (isPermissionDeniedError(e)) {
         setPermissionDenied(true);
         setError(
-          'Camera access was blocked. Please allow camera permission for this app, then tap Retry.',
+          'Camera access was blocked. Please grant camera permission in system settings.',
         );
       } else {
         setError(e instanceof Error ? e.message : String(e));
@@ -247,10 +210,8 @@ export function useQrScanner(videoRef: React.RefObject<HTMLVideoElement | null>)
 
   useEffect(() => {
     return () => {
-      // Always release the camera when the hook unmounts.
       stop();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
