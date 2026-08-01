@@ -51,7 +51,7 @@ import { formatFingerprint } from '../services/crypto/crypto';
 import { useQrScanner } from '../hooks/useQrScanner';
 import { parseQrPayload } from '../services/protocol/qr';
 import { getOrCreateIdentity } from '../services/crypto/identity';
-import { getPref, setPref, deletePref } from '../services/storage/idb';
+import { getPref, setPref, deletePref, addTrusted } from '../services/storage/idb';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -74,6 +74,9 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // Success message for profile imports via QR
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Remember Last Session — checkbox state and remembered values.
   const REMEMBER_ENABLED_KEY = 'login.rememberEnabled';
@@ -154,23 +157,41 @@ export function LoginPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scanner = useQrScanner(videoRef as React.RefObject<HTMLVideoElement | null>);
 
-  // When the scanner finds a code, parse it and apply. We only
-  // populate Server Address + Room Name (per spec), close the reader,
-  // and never auto-connect.
+  // When the scanner finds a code, parse it and apply.
+  // Supports both room QR codes and profile QR codes.
   useEffect(() => {
     if (!scanner.result) return;
     const parsed = parseQrPayload(scanner.result);
-    // Release the camera immediately on a successful scan (the hook
-    // already stops itself, but call stop() to be defensive about
-    // unmount races).
+    // Release the camera immediately on a successful scan
     scanner.stop();
     setScannerOpen(false);
+
     if (parsed?.kind === 'shc.room') {
       setServerUrl(parsed.server);
       setChannel(parsed.channel);
       setAdvancedOpen(true);
       setScanStage('success');
-      setTimeout(() => setScanStage('idle'), 2000);
+      setSuccessMessage(`Room #${parsed.channel} loaded from QR code`);
+      setTimeout(() => {
+        setScanStage('idle');
+        setSuccessMessage(null);
+      }, 3000);
+    } else if (parsed?.kind === 'shc.profile') {
+      // Save profile to trust registry
+      void addTrusted({
+        fingerprint: parsed.fingerprint,
+        label: parsed.nickname,
+        nick: parsed.nickname,
+        room: parsed.room,
+        addedAt: Date.now(),
+      }).then(() => {
+        setScanStage('success');
+        setSuccessMessage(`Trusted user "${parsed.nickname}" added successfully!`);
+        setTimeout(() => {
+          setScanStage('idle');
+          setSuccessMessage(null);
+        }, 3000);
+      });
     } else {
       setScanStage('error');
       setScanError('QR code is not a recognized room/profile code');
@@ -271,6 +292,7 @@ export function LoginPage() {
             </Stack>
 
             {lastError && <Alert severity="error">{lastError}</Alert>}
+            {successMessage && <Alert severity="success">{successMessage}</Alert>}
 
             <Stack spacing={2}>
               <TextField
@@ -351,7 +373,7 @@ export function LoginPage() {
             </Stack>
 
             <Stack direction="row" spacing={1.5}>
-              <Tooltip title="Scan a room QR code">
+              <Tooltip title="Scan a room or profile QR code">
                 <Button
                   fullWidth
                   variant="outlined"
@@ -415,7 +437,7 @@ export function LoginPage() {
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
       >
-        <DialogTitle>Scan room QR</DialogTitle>
+        <DialogTitle>Scan room or profile QR</DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
             <Box
@@ -466,7 +488,7 @@ export function LoginPage() {
             )}
             {scanError && <Alert severity="error">{scanError}</Alert>}
             <Typography variant="caption" color="text.secondary">
-              Only the server address and room name are read from the QR code.
+              Server address, room name, or user profile fingerprints are read from the QR code.
               The shared password, private key, and identity secrets are
               never included in a QR code.
             </Typography>
