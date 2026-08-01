@@ -25,15 +25,18 @@ export default function App() {
       <CssBaseline />
       <AppErrorBoundary>
         <ProfileBootstrap>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<LoginPage />} />
-              <Route path="/chat" element={<ChatPage />} />
-              <Route path="/members" element={<MembersPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </BrowserRouter>
+          {/* کانتینر اصلی برنامه برای مدیریت Safe Area و ابعاد کامل صفحه */}
+          <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#101014] pt-[var(--sat)] pb-[var(--sab)] pl-[var(--sal)] pr-[var(--sar)]">
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<LoginPage />} />
+                <Route path="/chat" element={<ChatPage />} />
+                <Route path="/members" element={<MembersPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </BrowserRouter>
+          </div>
         </ProfileBootstrap>
       </AppErrorBoundary>
     </ThemeRoot>
