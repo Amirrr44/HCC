@@ -8,10 +8,8 @@ import {
   Container 
 } from '@mui/material';
 
-import { StatusBar, Style } from '@capacitor/status-bar';
-
 export default function App() {
-  // 1. Automatic system theme detection (Dark/Light) without manual toggle button
+  // 1. Automatic system theme detection (Dark/Light)
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
 
   const theme = useMemo(
@@ -31,19 +29,24 @@ export default function App() {
     [prefersDarkMode]
   );
 
-  // Sync mobile status bar style with the active theme
+  // Safe StatusBar execution to prevent blank/black screen crashes on Android
   useEffect(() => {
     const updateStatusBar = async () => {
       try {
-        if (prefersDarkMode) {
-          await StatusBar.setStyle({ style: Style.Dark });
-          await StatusBar.setBackgroundColor({ color: '#121212' });
-        } else {
-          await StatusBar.setStyle({ style: Style.Light });
-          await StatusBar.setBackgroundColor({ color: '#f5f5f5' });
+        // Dynamically import StatusBar only inside native platform to prevent web crash
+        const { Capacitor } = await import('@capacitor/core');
+        if (Capacitor.isNativePlatform()) {
+          const { StatusBar, Style } = await import('@capacitor/status-bar');
+          if (prefersDarkMode) {
+            await StatusBar.setStyle({ style: Style.Dark });
+            await StatusBar.setBackgroundColor({ color: '#121212' });
+          } else {
+            await StatusBar.setStyle({ style: Style.Light });
+            await StatusBar.setBackgroundColor({ color: '#f5f5f5' });
+          }
         }
       } catch (e) {
-        // Fallback if running on standard web browser without Capacitor
+        console.warn("StatusBar integration bypassed silently:", e);
       }
     };
     updateStatusBar();
@@ -56,13 +59,13 @@ export default function App() {
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { facingMode: 'environment' } 
         });
-        console.log("Camera permission granted:", stream);
+        console.log("Camera access granted:", stream);
       } else {
         alert("Camera is not supported on this device.");
       }
     } catch (err) {
       console.error("Camera permission error:", err);
-      alert("Please allow camera access in your device settings to scan QR codes.");
+      alert("Please allow camera access in your device settings.");
     }
   };
 
@@ -70,7 +73,7 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       
-      {/* 3. Safe Area Insets to prevent overlap with Status Bar & Navigation Bar */}
+      {/* 3. Safe Area Insets to fix layout overflow under status/nav bars */}
       <Box
         sx={{
           display: 'flex',
@@ -86,7 +89,6 @@ export default function App() {
           boxSizing: 'border-box',
         }}
       >
-        {/* Main application container */}
         <Container 
           maxWidth="md" 
           sx={{ 
@@ -98,7 +100,7 @@ export default function App() {
             overflowY: 'auto'
           }}
         >
-          {/* Your chat components, headers, and message inputs go here */}
+          {/* Main App Content / UI goes here */}
         </Container>
       </Box>
     </ThemeProvider>
