@@ -4,12 +4,6 @@
 
 :root {
   color-scheme: dark;
-
-  /* Safe Area Variables for Capacitor / Mobile Viewports */
-  --sat: env(safe-area-inset-top, 0px);
-  --sab: env(safe-area-inset-bottom, 0px);
-  --sal: env(safe-area-inset-left, 0px);
-  --sar: env(safe-area-inset-right, 0px);
 }
 
 * {
@@ -62,46 +56,13 @@ html, body, #root {
 }
 
 /* ----------------------------------------------------------------
- * Layout & Glassmorphism Fixes for Status / Nav Bars
+ * Layout Base
  * ---------------------------------------------------------------- */
 #root {
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  height: 100vh;
-}
-
-/* Header شیشه‌ای - متصل به بالای صفحه (زیر Status Bar) */
-.glass-header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  padding-top: var(--sat); /* ایجاد حریم برای استاتوس‌بار */
-  background: rgba(16, 16, 20, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* Navigation Bar شیشه‌ای - متصل به پایین صفحه */
-.glass-nav {
-  position: sticky;
-  bottom: 0;
-  z-index: 50;
-  padding-bottom: var(--sab); /* ایجاد حریم برای نویگیشن‌بار گوشی */
-  background: rgba(16, 16, 20, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* بخش اصلی محتوا که بین دو بار بالا و پایین قرار می‌گیره */
-.app-content {
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-left: var(--sal);
-  padding-right: var(--sar);
+  width: 100%;
+  height: 100%;
 }
 
 /* ----------------------------------------------------------------
