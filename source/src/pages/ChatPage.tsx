@@ -3,7 +3,7 @@
  * Members page. The dedicated Members icon has been removed.
  */
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box,
   AppBar,
@@ -24,6 +24,7 @@ import { useSession } from '../store/session';
 import { MessageBubble } from '../components/chat/MessageBubble';
 import { MessageInput } from '../components/chat/MessageInput';
 import type { ChannelStatus } from '../services/crypto/secureChannel';
+import { useBackButton } from '../hooks/useBackButton';
 
 const STATUS_COLOR: Record<ChannelStatus, string> = {
   idle: 'text.secondary',
@@ -56,7 +57,24 @@ export function ChatPage() {
   const unverifiedHellos = useSession((s) => s.unverifiedHellos);
   const members = useSession((s) => s.members);
 
+  const [backToastMessage, setBackToastMessage] = useState<string | null>(null);
+
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Back button handler for ChatPage
+  const handleBack = useCallback(
+    (isDoubleTap: boolean) => {
+      if (isDoubleTap) {
+        disconnect();
+        navigate('/', { replace: true });
+      } else {
+        setBackToastMessage('برای خروج از اتاق دوباره دکمه بازگشت را بزنید');
+      }
+    },
+    [disconnect, navigate]
+  );
+
+  useBackButton({ onBack: handleBack });
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -207,6 +225,26 @@ export function ChatPage() {
           {lastError}
         </Alert>
       </Snackbar>
+
+      <Snackbar
+        open={!!backToastMessage}
+        autoHideDuration={2000}
+        onClose={() => setBackToastMessage(null)}
+        message={backToastMessage}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        ContentProps={{
+          sx: {
+            backgroundColor: 'rgba(40, 40, 40, 0.95)',
+            color: '#fff',
+            borderRadius: '20px',
+            px: 2.5,
+            py: 0.5,
+            minWidth: 'auto',
+            fontSize: '0.825rem',
+            fontWeight: 500,
+          },
+        }}
+      />
     </Box>
   );
 }
