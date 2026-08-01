@@ -19,52 +19,108 @@ function ProfileBootstrap({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// کامپوننت مدیریت متمرکز دکمه برگشت و Toast ریز خاکستری
+// مدیریت سراسری دکمه برگشت سخت‌افزاری / مرورگر
 function BackButtonManager() {
   const navigate = useNavigate();
   const location = useLocation();
   const lastBackPressTime = useRef<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // ۱. کنترل رویدادهای نیتیو اندروید (Capacitor / Cordova)
   useEffect(() => {
-    window.history.pushState(null, '', window.location.href);
+    const handleNativeBackButton = (e: any) => {
+      // جلوگیری از رفتار پیش‌فرض نیتیو (که بستن آنی اپلیکیشن هست)
+      if (e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+      }
 
-    const handlePopState = (event: PopStateEvent) => {
-      event.preventDefault();
       const now = Date.now();
       const timeDiff = now - lastBackPressTime.current;
-      const currentPath = location.pathname;
+      const currentPath = window.location.pathname;
 
-      // 1. Profile / Members -> Go back instantly
+      // ۱. صفحات فرعی (پروفایل، اعضا و...) -> برگشت آنی به صفحه قبل
       if (currentPath === '/profile' || currentPath === '/members') {
         navigate(-1);
         return;
       }
 
-      // 2. Chat room -> Double tap to leave room and go to Login
+      // ۲. اتاق چت -> دوبار زدن برای خروج به لاگین
       if (currentPath === '/chat') {
         if (timeDiff < 2000) {
           navigate('/', { replace: true });
         } else {
           lastBackPressTime.current = now;
           setToastMessage('Press back again to leave the room');
-          window.history.pushState(null, '', window.location.href);
         }
         return;
       }
 
-      // 3. Login page -> Double tap to exit application
-      if (currentPath === '/') {
+      // ۳. صفحه لاگین -> دوبار زدن برای خروج از اپلیکیشن
+      if (currentPath === '/' || currentPath === '/login') {
         if (timeDiff < 2000) {
           if ((window as any).navigator?.app?.exitApp) {
             (window as any).navigator.app.exitApp();
+          } else if ((window as any).Capacitor?.Plugins?.App) {
+            (window as any).Capacitor.Plugins.App.exitApp();
           } else {
             window.history.back();
           }
         } else {
           lastBackPressTime.current = now;
           setToastMessage('Press back again to exit the app');
-          window.history.pushState(null, '', window.location.href);
+        }
+        return;
+      }
+
+      navigate(-1);
+    };
+
+    // اضافه کردن Listener برای Cordova / PhoneGap / Capacitor
+    document.addEventListener('backbutton', handleNativeBackButton, false);
+
+    return () => {
+      document.removeEventListener('backbutton', handleNativeBackButton, false);
+    };
+  }, [navigate]);
+
+  // ۲. کنترل تاریخچه مرورگر (Web History API)
+  useEffect(() => {
+    // به ازای هر بار تغییر مسیر، یک History Entry جدید تزریق می‌کنیم تا دکمه برگشت برنامه‌مان را نبندد
+    window.history.pushState({ page: location.pathname }, '', window.location.href);
+
+    const handlePopState = (event: PopStateEvent) => {
+      // بلافاصله هیستوری را نگه می‌داریم
+      window.history.pushState({ page: location.pathname }, '', window.location.href);
+
+      const now = Date.now();
+      const timeDiff = now - lastBackPressTime.current;
+      const currentPath = location.pathname;
+
+      if (currentPath === '/profile' || currentPath === '/members') {
+        navigate(-1);
+        return;
+      }
+
+      if (currentPath === '/chat') {
+        if (timeDiff < 2000) {
+          navigate('/', { replace: true });
+        } else {
+          lastBackPressTime.current = now;
+          setToastMessage('Press back again to leave the room');
+        }
+        return;
+      }
+
+      if (currentPath === '/' || currentPath === '/login') {
+        if (timeDiff < 2000) {
+          if ((window as any).navigator?.app?.exitApp) {
+            (window as any).navigator.app.exitApp();
+          } else if ((window as any).Capacitor?.Plugins?.App) {
+            (window as any).Capacitor.Plugins.App.exitApp();
+          }
+        } else {
+          lastBackPressTime.current = now;
+          setToastMessage('Press back again to exit the app');
         }
         return;
       }
