@@ -9,5 +9,10 @@
   "android": {
     "allowMixedContent": true,
     "captureInput": true
+  },
+  "plugins": {
+    "Camera": {
+      "permissions": ["camera"]
+    }
   }
 }
