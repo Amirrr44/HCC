@@ -1,16 +1,23 @@
-import React, { useEffect } from 'react';
-import { ThemeProvider } from '@mui/material/styles';
+import React, { useEffect, useMemo } from 'react';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { useTheme } from '../../store/theme';
-import { getTheme } from '../../theme';
 
 export const ThemeRoot: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 1. دریافت حالت فعلی تم (dark / light) از Zustand
+  // 1. دریافت حالت فعلی (dark یا light) از استور پروژه
   const mode = useTheme((state) => state.mode);
 
-  // 2. دریافت تم MUI مناسب با استفاده از تابع getTheme سورس پروژه
-  const theme = getTheme(mode);
+  // 2. ساخت مستقیم تم MUI بدون نیاز به هیچ فایل جانبی
+  const theme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: mode || 'dark',
+        },
+      }),
+    [mode]
+  );
 
-  // 3. همگام‌سازی نوار وضعیت (StatusBar) اندروید با تم
+  // 3. همگام‌سازی Status Bar اندروید با تم
   useEffect(() => {
     const syncStatusBar = async () => {
       try {
@@ -22,7 +29,7 @@ export const ThemeRoot: React.FC<{ children: React.ReactNode }> = ({ children })
           });
         }
       } catch (e) {
-        console.warn('StatusBar sync failed:', e);
+        console.warn('StatusBar sync bypass:', e);
       }
     };
 
