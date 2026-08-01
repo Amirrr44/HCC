@@ -19,108 +19,58 @@ function ProfileBootstrap({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// مدیریت سراسری دکمه برگشت سخت‌افزاری / مرورگر
 function BackButtonManager() {
   const navigate = useNavigate();
   const location = useLocation();
   const lastBackPressTime = useRef<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // ۱. کنترل رویدادهای نیتیو اندروید (Capacitor / Cordova)
+  // ایجاد یک Trap در تاریخچه مرورگر موقع تغییر صفحه
   useEffect(() => {
-    const handleNativeBackButton = (e: any) => {
-      // جلوگیری از رفتار پیش‌فرض نیتیو (که بستن آنی اپلیکیشن هست)
-      if (e && typeof e.preventDefault === 'function') {
-        e.preventDefault();
-      }
+    // ۱. پُر کردن هیستوری برای جلوگیری از خروج آنی
+    window.history.pushState({ guard: true }, '', window.location.href);
 
+    const handlePopState = () => {
       const now = Date.now();
       const timeDiff = now - lastBackPressTime.current;
       const currentPath = window.location.pathname;
 
-      // ۱. صفحات فرعی (پروفایل، اعضا و...) -> برگشت آنی به صفحه قبل
+      // ۱. صفحات فرعی (پروفایل و اعضا) -> برگشت به صفحه قبل
       if (currentPath === '/profile' || currentPath === '/members') {
         navigate(-1);
         return;
       }
 
-      // ۲. اتاق چت -> دوبار زدن برای خروج به لاگین
+      // ۲. صفحه چت -> دو بار زدن برای خروج به لاگین
       if (currentPath === '/chat') {
         if (timeDiff < 2000) {
           navigate('/', { replace: true });
         } else {
           lastBackPressTime.current = now;
           setToastMessage('Press back again to leave the room');
+          // دوباره هیستوری را قفل می‌کنیم
+          window.history.pushState({ guard: true }, '', window.location.href);
         }
         return;
       }
 
-      // ۳. صفحه لاگین -> دوبار زدن برای خروج از اپلیکیشن
+      // ۳. صفحه لاگین -> دو بار زدن برای خروج کامل
       if (currentPath === '/' || currentPath === '/login') {
         if (timeDiff < 2000) {
-          if ((window as any).navigator?.app?.exitApp) {
-            (window as any).navigator.app.exitApp();
-          } else if ((window as any).Capacitor?.Plugins?.App) {
+          // اگر کپسیتیور/کوردوا یا WebView باشه برنامه رو می‌بنده
+          if ((window as any).Capacitor?.Plugins?.App) {
             (window as any).Capacitor.Plugins.App.exitApp();
+          } else if ((window as any).navigator?.app?.exitApp) {
+            (window as any).navigator.app.exitApp();
           } else {
+            // در مرورگر عادی، اجازه خروج داده می‌شود
             window.history.back();
           }
         } else {
           lastBackPressTime.current = now;
           setToastMessage('Press back again to exit the app');
-        }
-        return;
-      }
-
-      navigate(-1);
-    };
-
-    // اضافه کردن Listener برای Cordova / PhoneGap / Capacitor
-    document.addEventListener('backbutton', handleNativeBackButton, false);
-
-    return () => {
-      document.removeEventListener('backbutton', handleNativeBackButton, false);
-    };
-  }, [navigate]);
-
-  // ۲. کنترل تاریخچه مرورگر (Web History API)
-  useEffect(() => {
-    // به ازای هر بار تغییر مسیر، یک History Entry جدید تزریق می‌کنیم تا دکمه برگشت برنامه‌مان را نبندد
-    window.history.pushState({ page: location.pathname }, '', window.location.href);
-
-    const handlePopState = (event: PopStateEvent) => {
-      // بلافاصله هیستوری را نگه می‌داریم
-      window.history.pushState({ page: location.pathname }, '', window.location.href);
-
-      const now = Date.now();
-      const timeDiff = now - lastBackPressTime.current;
-      const currentPath = location.pathname;
-
-      if (currentPath === '/profile' || currentPath === '/members') {
-        navigate(-1);
-        return;
-      }
-
-      if (currentPath === '/chat') {
-        if (timeDiff < 2000) {
-          navigate('/', { replace: true });
-        } else {
-          lastBackPressTime.current = now;
-          setToastMessage('Press back again to leave the room');
-        }
-        return;
-      }
-
-      if (currentPath === '/' || currentPath === '/login') {
-        if (timeDiff < 2000) {
-          if ((window as any).navigator?.app?.exitApp) {
-            (window as any).navigator.app.exitApp();
-          } else if ((window as any).Capacitor?.Plugins?.App) {
-            (window as any).Capacitor.Plugins.App.exitApp();
-          }
-        } else {
-          lastBackPressTime.current = now;
-          setToastMessage('Press back again to exit the app');
+          // هیستوری را قفل نگه می‌داریم تا ضربه دوم زده شود
+          window.history.pushState({ guard: true }, '', window.location.href);
         }
         return;
       }
@@ -129,6 +79,7 @@ function BackButtonManager() {
     };
 
     window.addEventListener('popstate', handlePopState);
+
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
