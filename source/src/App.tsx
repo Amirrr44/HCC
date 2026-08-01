@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { CssBaseline, Box } from '@mui/material';
 import { ThemeRoot } from './components/common/ThemeRoot';
@@ -11,30 +11,30 @@ import { useProfile } from './store/profile';
 
 function ProfileBootstrap({ children }: { children: React.ReactNode }) {
   const init = useProfile((s) => s.init);
-  
+
   useEffect(() => {
     void init();
   }, [init]);
 
-  // Safe StatusBar & Camera Initialization for Mobile (Capacitor)
+  // Safe Native Setup for Mobile (StatusBar & Camera initialization)
   useEffect(() => {
     const initNativeFeatures = async () => {
       try {
         const { Capacitor } = await import('@capacitor/core');
         if (Capacitor.isNativePlatform()) {
-          // 1. Configure Status Bar safely without crashing on Web/Android
+          // Dynamic import of StatusBar to prevent build/runtime breaks on web
           const { StatusBar, Style } = await import('@capacitor/status-bar');
           const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
           await StatusBar.setStyle({ style: prefersDarkMode ? Style.Dark : Style.Light });
-          
-          // 2. Request Camera Permission upfront if needed
+
+          // Pre-request Web Camera Stream fallback
           if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
               .catch((err) => console.log("Camera access not granted yet:", err));
           }
         }
       } catch (e) {
-        console.warn("Native features bypassed silently:", e);
+        console.warn("Native mobile features bypassed:", e);
       }
     };
 
@@ -49,7 +49,7 @@ export default function App() {
     <ThemeRoot>
       <CssBaseline />
       
-      {/* Container with Safe Area Insets to prevent content overlap under Status/Nav bars */}
+      {/* Wrapper to handle mobile Safe Area Insets dynamically */}
       <Box
         sx={{
           height: '100vh',
