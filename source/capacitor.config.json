@@ -13,11 +13,6 @@
   "plugins": {
     "Camera": {
       "permissions": ["camera"]
-    },
-    "StatusBar": {
-      "overlaysWebView": false,
-      "style": "DARK",
-      "backgroundColor": "#101014"
     }
   }
 }
