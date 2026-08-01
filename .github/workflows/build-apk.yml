@@ -28,18 +28,24 @@ steps:
     uses: android-actions/setup-android@v3
 
   - name: Install Dependencies
-    run: npm ci
+    run: |
+      if [ -d "source" ]; then cd source; fi
+      npm install
 
   - name: Build Web App
-    run: npm run build
+    run: |
+      if [ -d "source" ]; then cd source; fi
+      npm run build
 
   - name: Add Android Platform & Sync
     run: |
+      if [ -d "source" ]; then cd source; fi
       npx cap add android || true
       npx cap sync android
 
   - name: Build APK with Gradle
     run: |
+      if [ -d "source" ]; then cd source; fi
       cd android
       chmod +x gradlew
       ./gradlew assembleDebug
@@ -48,4 +54,6 @@ steps:
     uses: actions/upload-artifact@v4
     with:
       name: app-debug.apk
-      path: android/app/build/outputs/apk/debug/app-debug.apk
+      path: |
+        source/android/app/build/outputs/apk/debug/app-debug.apk
+        android/app/build/outputs/apk/debug/app-debug.apk
