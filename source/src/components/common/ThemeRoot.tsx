@@ -1,16 +1,16 @@
 import React, { useEffect } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import { useTheme } from '../../store/theme';
-import { darkTheme, lightTheme } from '../../theme';
+import { getTheme } from '../../theme';
 
 export const ThemeRoot: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 1. استفاده از اسم واقعی هوک تم پروژه (useTheme)
+  // 1. دریافت حالت فعلی تم (dark / light) از Zustand
   const mode = useTheme((state) => state.mode);
 
-  // 2. انتخاب تم MUI متناسب با حالت فعلی
-  const theme = mode === 'dark' ? darkTheme : lightTheme;
+  // 2. دریافت تم MUI مناسب با استفاده از تابع getTheme سورس پروژه
+  const theme = getTheme(mode);
 
-  // 3. همگام‌سازی StatusBar اندروید با تغییر تم
+  // 3. همگام‌سازی نوار وضعیت (StatusBar) اندروید با تم
   useEffect(() => {
     const syncStatusBar = async () => {
       try {
