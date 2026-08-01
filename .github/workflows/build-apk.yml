@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -28,33 +28,51 @@ jobs:
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Dependencies
+      - name: Find Project Directory & Install Dependencies
         run: |
-          if [ -d "source" ]; then cd source; fi
-          npm install
+          if [ -f "package.json" ]; then
+            echo "Project root found!"
+            npm install
+          elif [ -f "source/package.json" ]; then
+            echo "Project found in source/"
+            cd source && npm install
+          fi
 
       - name: Build Web App
         run: |
-          if [ -d "source" ]; then cd source; fi
-          npm run build
+          if [ -f "package.json" ]; then
+            npm run build
+          elif [ -f "source/package.json" ]; then
+            cd source && npm run build
+          fi
 
       - name: Add Android Platform & Sync
         run: |
-          if [ -d "source" ]; then cd source; fi
-          npx cap add android || true
-          npx cap sync android
+          if [ -f "package.json" ]; then
+            npx cap add android || true
+            npx cap sync android
+          elif [ -f "source/package.json" ]; then
+            cd source
+            npx cap add android || true
+            npx cap sync android
+          fi
 
       - name: Build APK with Gradle
         run: |
-          if [ -d "source" ]; then cd source; fi
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          if [ -d "android" ]; then
+            cd android
+            chmod +x gradlew
+            ./gradlew assembleDebug
+          elif [ -d "source/android" ]; then
+            cd source/android
+            chmod +x gradlew
+            ./gradlew assembleDebug
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug.apk
           path: |
-            source/android/app/build/outputs/apk/debug/app-debug.apk
             android/app/build/outputs/apk/debug/app-debug.apk
+            source/android/app/build/outputs/apk/debug/app-debug.apk
