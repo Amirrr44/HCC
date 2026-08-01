@@ -35,6 +35,7 @@ import {
   Typography,
   CircularProgress,
   Link,
+  Snackbar,
 } from '@mui/material';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
@@ -52,6 +53,7 @@ import { useQrScanner } from '../hooks/useQrScanner';
 import { parseQrPayload } from '../services/protocol/qr';
 import { getOrCreateIdentity } from '../services/crypto/identity';
 import { getPref, setPref, deletePref, addTrusted } from '../services/storage/idb';
+import { useBackButton } from '../hooks/useBackButton';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -77,6 +79,9 @@ export function LoginPage() {
 
   // Success message for profile imports via QR
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Back button toast state
+  const [backToastMessage, setBackToastMessage] = useState<string | null>(null);
 
   // Remember Last Session — checkbox state and remembered values.
   const REMEMBER_ENABLED_KEY = 'login.rememberEnabled';
@@ -157,6 +162,36 @@ export function LoginPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scanner = useQrScanner(videoRef as React.RefObject<HTMLVideoElement | null>);
 
+  const closeScanner = useCallback(() => {
+    // Always release the camera when the QR reader is dismissed.
+    scanner.stop();
+    setScannerOpen(false);
+    setScanStage('idle');
+  }, [scanner]);
+
+  // Back button handler for LoginPage
+  const handleBack = useCallback(
+    (isDoubleTap: boolean) => {
+      if (scannerOpen) {
+        closeScanner();
+        return;
+      }
+
+      if (isDoubleTap) {
+        if ((window as any).Capacitor?.Plugins?.App) {
+          (window as any).Capacitor.Plugins.App.exitApp();
+        } else {
+          window.history.back();
+        }
+      } else {
+        setBackToastMessage('برای خروج دوباره دکمه بازگشت را بزنید');
+      }
+    },
+    [scannerOpen, closeScanner]
+  );
+
+  useBackButton({ onBack: handleBack });
+
   // When the scanner finds a code, parse it and apply.
   // Supports both room QR codes and profile QR codes.
   useEffect(() => {
@@ -228,13 +263,6 @@ export function LoginPage() {
     setTimeout(() => {
       void scanner.start();
     }, 100);
-  };
-
-  const closeScanner = () => {
-    // Always release the camera when the QR reader is dismissed.
-    scanner.stop();
-    setScannerOpen(false);
-    setScanStage('idle');
   };
 
   const retryScanner = () => {
@@ -511,6 +539,26 @@ export function LoginPage() {
           <Button onClick={closeScanner}>Close</Button>
         </Stack>
       </Dialog>
+
+      <Snackbar
+        open={!!backToastMessage}
+        autoHideDuration={2000}
+        onClose={() => setBackToastMessage(null)}
+        message={backToastMessage}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        ContentProps={{
+          sx: {
+            backgroundColor: 'rgba(40, 40, 40, 0.95)',
+            color: '#fff',
+            borderRadius: '20px',
+            px: 2.5,
+            py: 0.5,
+            minWidth: 'auto',
+            fontSize: '0.825rem',
+            fontWeight: 500,
+          },
+        }}
+      />
     </Box>
   );
 }
