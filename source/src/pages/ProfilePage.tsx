@@ -9,7 +9,7 @@
  * Nothing on this page is ever sent to the server.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   AppBar,
   Box,
@@ -51,6 +51,7 @@ import {
   removeTrusted,
   type TrustedFingerprint,
 } from '../services/storage/idb';
+import { useBackButton } from '../hooks/useBackButton';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -67,6 +68,17 @@ export function ProfilePage() {
   const [addFp, setAddFp] = useState('');
   const [addLabel, setAddLabel] = useState('');
   const [snack, setSnack] = useState<string | null>(null);
+
+  // Back button handler for ProfilePage
+  const handleBack = useCallback(() => {
+    if (addOpen) {
+      setAddOpen(false);
+      return;
+    }
+    navigate(-1);
+  }, [addOpen, navigate]);
+
+  useBackButton({ onBack: handleBack });
 
   // Load local identity key on mount even if session is not active
   useEffect(() => {
