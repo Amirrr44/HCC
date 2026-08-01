@@ -1,59 +1,35 @@
-import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
 
-export function useBackButton() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const lastBackPressTime = useRef<number>(0);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+interface UseBackButtonOptions {
+  onBack: (isDoubleTap: boolean) => void;
+}
+
+export function useBackButton({ onBack }: UseBackButtonOptions) {
+  const lastPressTime = useRef<number>(0);
 
   useEffect(() => {
-    // ۱. تزریق یک Dummy state تا مرورگر دکمه Back را نبندد
-    window.history.pushState({ guard: true }, '', window.location.href);
+    // ۱. تزریق State اولیه به تاریخچه برای جلوگیری از خروج آنی مرورگر
+    window.history.pushState({ pageGuard: true }, '', window.location.href);
 
-    const handlePopState = () => {
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
       const now = Date.now();
-      const timeDiff = now - lastBackPressTime.current;
-      const currentPath = window.location.pathname;
+      const timeDiff = now - lastPressTime.current;
+      const isDoubleTap = timeDiff < 2000;
 
-      // ۱. اگر در صفحه پروفایل یا اعضا باشد -> برگشت مستقیم
-      if (currentPath === '/profile' || currentPath === '/members') {
-        navigate(-1);
-        return;
+      if (!isDoubleTap) {
+        lastPressTime.current = now;
+        // هیستوری را مجدداً قفل نگه می‌داریم تا ضربه دوم گرفته شود
+        window.history.pushState({ pageGuard: true }, '', window.location.href);
       }
 
-      // ۲. اگر در صفحه چت باشد -> دو بار زدن برای برگشت به لاگین
-      if (currentPath === '/chat') {
-        if (timeDiff < 2000) {
-          navigate('/', { replace: true });
-        } else {
-          lastBackPressTime.current = now;
-          setToastMessage('Press back again to leave the room');
-          window.history.pushState({ guard: true }, '', window.location.href);
-        }
-        return;
-      }
-
-      // ۳. اگر در صفحه لاگین باشد -> دو بار زدن برای خروج
-      if (currentPath === '/' || currentPath === '/login') {
-        if (timeDiff < 2000) {
-          window.history.back();
-        } else {
-          lastBackPressTime.current = now;
-          setToastMessage('Press back again to exit the app');
-          window.history.pushState({ guard: true }, '', window.location.href);
-        }
-        return;
-      }
-
-      navigate(-1);
+      onBack(isDoubleTap);
     };
 
     window.addEventListener('popstate', handlePopState);
+
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [location.pathname, navigate]);
-
-  return { toastMessage, setToastMessage };
+  }, [onBack]);
 }
