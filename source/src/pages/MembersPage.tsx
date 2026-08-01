@@ -7,7 +7,7 @@
  *   - The local trust registry
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AppBar,
   Box,
@@ -43,6 +43,7 @@ import { useSession } from '../store/session';
 import type { Member, MemberStatus } from '../types';
 import { formatFingerprint } from '../services/crypto/crypto';
 import { renderQrDataUrl, buildRoomPayload } from '../services/protocol/qr';
+import { useBackButton } from '../hooks/useBackButton';
 
 const STATUS_COLOR: Record<MemberStatus, string> = {
   unknown: '#8B7E6B',
@@ -72,6 +73,17 @@ export function MembersPage() {
   const [snack, setSnack] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [roomQrUrl, setRoomQrUrl] = useState<string | null>(null);
+
+  // Back button handler for MembersPage
+  const handleBack = useCallback(() => {
+    if (openMember) {
+      setOpenMember(null);
+      return;
+    }
+    navigate(-1);
+  }, [openMember, navigate]);
+
+  useBackButton({ onBack: handleBack });
 
   // Render the Room QR on mount / whenever server/channel change.
   useEffect(() => {
@@ -254,13 +266,9 @@ export function MembersPage() {
                       fontSize: 14,
                       wordBreak: 'break-all',
                       letterSpacing: 0.4,
-                      // Hide the password by default. When shown, render
-                      // the raw text. When hidden, render a fixed-width
-                      // dot pattern to preserve the visual layout.
                       ...(showPassword
                         ? { color: 'text.primary' }
                         : {
-                            // Prevents selection of the obfuscated dots.
                             WebkitUserSelect: 'none',
                             userSelect: 'none',
                           }),
