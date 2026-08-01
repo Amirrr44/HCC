@@ -43,6 +43,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../store/profile';
 import { useSession } from '../store/session';
 import { formatFingerprint } from '../services/crypto/crypto';
+import { getOrCreateIdentity } from '../services/crypto/identity';
 import { renderQrDataUrl, buildProfilePayload } from '../services/protocol/qr';
 import {
   addTrusted,
@@ -56,8 +57,10 @@ export function ProfilePage() {
   const profile = useProfile((s) => s.profile);
   const setNickname = useProfile((s) => s.setNickname);
   const setFavoriteRoom = useProfile((s) => s.setFavoriteRoom);
-  const identityFingerprint = useSession((s) => s.identityFingerprintDisplay);
+  const sessionIdentityFp = useSession((s) => s.identityFingerprintDisplay);
 
+  const [rawFingerprint, setRawFingerprint] = useState<string>('');
+  const [displayFingerprint, setDisplayFingerprint] = useState<string>('');
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [trusted, setTrusted] = useState<TrustedFingerprint[]>([]);
   const [addOpen, setAddOpen] = useState(false);
@@ -65,21 +68,39 @@ export function ProfilePage() {
   const [addLabel, setAddLabel] = useState('');
   const [snack, setSnack] = useState<string | null>(null);
 
-  // Render the personal QR on mount / whenever the profile or fp changes.
+  // Load local identity key on mount even if session is not active
   useEffect(() => {
-    const fp = useSession.getState().identityFingerprintDisplay ||
-      formatFingerprint(useSession.getState().identity?.fingerprint ?? '');
-    if (!fp) {
+    let active = true;
+    void getOrCreateIdentity().then((id) => {
+      if (!active) return;
+      setRawFingerprint(id.fingerprint);
+      setDisplayFingerprint(formatFingerprint(id.fingerprint));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Render the personal QR on mount / whenever profile, session fp or local fp changes
+  useEffect(() => {
+    const activeFp = sessionIdentityFp || displayFingerprint;
+    const activeRawFp = rawFingerprint || activeFp.replace(/[-\s]/g, '');
+
+    if (!activeRawFp) {
       setQrUrl(null);
       return;
     }
+
     const payload = buildProfilePayload({
       nickname: profile.nickname,
-      fingerprint: fp.replace(/-/g, ''),
+      fingerprint: activeRawFp,
       room: profile.favoriteRoom,
     });
-    void renderQrDataUrl(payload, 256).then(setQrUrl).catch(() => setQrUrl(null));
-  }, [profile.nickname, profile.favoriteRoom, identityFingerprint]);
+
+    void renderQrDataUrl(payload, 256)
+      .then(setQrUrl)
+      .catch(() => setQrUrl(null));
+  }, [profile.nickname, profile.favoriteRoom, sessionIdentityFp, displayFingerprint, rawFingerprint]);
 
   // Load the trusted-fingerprint registry.
   useEffect(() => {
@@ -87,9 +108,9 @@ export function ProfilePage() {
   }, []);
 
   const copyFingerprint = () => {
-    const fp = useSession.getState().identity?.fingerprint ?? '';
-    if (fp) {
-      void navigator.clipboard.writeText(fp);
+    const fpToCopy = rawFingerprint || useSession.getState().identity?.fingerprint || '';
+    if (fpToCopy) {
+      void navigator.clipboard.writeText(fpToCopy);
       setSnack('Fingerprint copied');
     }
   };
@@ -211,7 +232,7 @@ export function ProfilePage() {
                     Permanent fingerprint
                   </Typography>
                   <TextField
-                    value={identityFingerprint || '—'}
+                    value={sessionIdentityFp || displayFingerprint || '—'}
                     className="allow-text-select"
                     InputProps={{
                       readOnly: true,
@@ -278,6 +299,80 @@ export function ProfilePage() {
                               variant="body2"
                               className="allow-text-select"
                               sx={{ fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace' }}
+                            >
+                              {formatFingerprint(t.fingerprint)}
+                            </Typography>
+                            <Chip size="small" label="Trusted" color="success" sx={{ height: 18, fontSize: 10 }} />
+                          </Stack>
+                        }
+                        secondary={
+                          <>
+                            {t.label ? <span>{t.label} · </span> : null}
+                            {t.lastNick ? <span>last seen as “{t.lastNick}” · </span> : null}
+                            {t.lastRoom ? <span>trusted in #{t.lastRoom}</span> : null}
+                          </>
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </CardContent>
+          </Card>
+        </Stack>
+      </Box>
+
+      {/* Add dialog */}
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Trust a fingerprint</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              autoFocus
+              label="Fingerprint (64 hex)"
+              value={addFp}
+              onChange={(e) => setAddFp(e.target.value)}
+              placeholder="91af23bc8f4e..."
+              fullWidth
+              className="allow-text-select"
+            />
+            <TextField
+              label="Label (optional)"
+              value={addLabel}
+              onChange={(e) => setAddLabel(e.target.value)}
+              placeholder="Alice's laptop"
+              fullWidth
+              className="allow-text-select"
+            />
+            <Typography variant="caption" color="text.secondary">
+              Verify the fingerprint out-of-band (e.g. voice call) before
+              trusting it. The room recorded here is your favorite room at
+              the time of insertion: <strong>#{profile.favoriteRoom}</strong>.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={() => void submitAdd()}>
+            Trust
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={!!snack}
+        autoHideDuration={2400}
+        onClose={() => setSnack(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setSnack(null)}>
+          {snack}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+}
+ui-monospace, "SF Mono", Menlo, monospace' }}
                             >
                               {formatFingerprint(t.fingerprint)}
                             </Typography>
