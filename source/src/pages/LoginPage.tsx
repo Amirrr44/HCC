@@ -1,18 +1,3 @@
-/**
- * Login page.
- *
- * Fields:
- *   - Room (required, the only field at the top level)
- *   - Collapsible "Advanced" section containing:
- *       - Server Address
- *       - Shared Password
- *   - Two side-action buttons: QR code reader, profile.
- *
- * The nickname is no longer a login field — it is read from the user
- * profile (see `useProfile`). The shared password is never sent to
- * the server.
- */
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -65,7 +50,6 @@ export function LoginPage() {
   const profileReady = useProfile((s) => s.ready);
   const initProfile = useProfile((s) => s.init);
 
-  // Bootstrap the profile on first mount.
   useEffect(() => {
     void initProfile();
   }, [initProfile]);
@@ -77,17 +61,13 @@ export function LoginPage() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Success message for profile imports via QR
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Remember Last Session — checkbox state and remembered values.
   const REMEMBER_ENABLED_KEY = 'login.rememberEnabled';
   const REMEMBERED_VALUES_KEY = 'login.rememberedValues';
   const [rememberLastSession, setRememberLastSession] = useState(true);
   const [rememberLoaded, setRememberLoaded] = useState(false);
 
-  // Load the checkbox state and (when enabled) the remembered values
-  // from IndexedDB on mount.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -131,20 +111,8 @@ export function LoginPage() {
     } else {
       void deletePref(REMEMBERED_VALUES_KEY);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rememberLastSession, rememberLoaded]);
+  }, [rememberLastSession, rememberLoaded, serverUrl, channel, password]);
 
-  useEffect(() => {
-    if (!rememberLoaded) return;
-    if (!rememberLastSession) return;
-    void setPref(REMEMBERED_VALUES_KEY, {
-      serverUrl,
-      channel,
-      password,
-    });
-  }, [serverUrl, channel, password, rememberLastSession, rememberLoaded]);
-
-  // QR scanner dialog state.
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanStage, setScanStage] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
   const [scanError, setScanError] = useState<string | null>(null);
@@ -158,7 +126,7 @@ export function LoginPage() {
     setScanStage('idle');
   }, [scanner]);
 
-  // Single-tap Back button handler for LoginPage
+  // مدیریت دکمه بازگشت اندروید در صفحه لاگین
   const handleBack = useCallback(() => {
     if (scannerOpen) {
       closeScanner();
@@ -205,8 +173,7 @@ export function LoginPage() {
       setScanError('QR code is not a recognized room/profile code');
       setTimeout(() => setScanStage('idle'), 2000);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scanner.result]);
+  }, [scanner.result, scanner]);
 
   const onConnect = useCallback(async () => {
     if (!profileReady) {
@@ -428,7 +395,6 @@ export function LoginPage() {
         </CardContent>
       </Card>
 
-      {/* QR scanner dialog */}
       <Dialog
         open={scannerOpen}
         onClose={closeScanner}
