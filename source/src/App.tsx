@@ -8,6 +8,7 @@ import { MembersPage } from './pages/MembersPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { useProfile } from './store/profile';
+import { useBackButton } from './hooks/useBackButton';
 
 function ProfileBootstrap({ children }: { children: React.ReactNode }) {
   const init = useProfile((s) => s.init);
@@ -19,6 +20,22 @@ function ProfileBootstrap({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// کامپوننت داخلی برای فعال‌سازی هوک BackButton در محیط BrowserRouter
+function AppRoutes() {
+  // فعال‌سازی و متصل کردن هوک دکمه بازگشت اندروید به روتر
+  useBackButton();
+
+  return (
+    <Routes>
+      <Route path="/" element={<LoginPage />} />
+      <Route path="/chat" element={<ChatPage />} />
+      <Route path="/members" element={<MembersPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
     <ThemeRoot>
@@ -28,13 +45,7 @@ export default function App() {
           {/* کانتینر اصلی برنامه برای مدیریت Safe Area و ابعاد کامل صفحه */}
           <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#101014] pt-[var(--sat)] pb-[var(--sab)] pl-[var(--sal)] pr-[var(--sar)]">
             <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<LoginPage />} />
-                <Route path="/chat" element={<ChatPage />} />
-                <Route path="/members" element={<MembersPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
+              <AppRoutes />
             </BrowserRouter>
           </div>
         </ProfileBootstrap>
@@ -42,3 +53,4 @@ export default function App() {
     </ThemeRoot>
   );
 }
+ 
