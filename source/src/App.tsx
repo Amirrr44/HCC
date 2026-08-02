@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { CssBaseline } from '@mui/material';
+import { App } from '@capacitor/app';
 import { ThemeRoot } from './components/common/ThemeRoot';
 import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
@@ -22,11 +23,18 @@ function ProfileBootstrap({ children }: { children: React.ReactNode }) {
 
 function AppContent() {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // هندل کردن دکمه Back دقیقاً بر اساس هوک پروژه شما
+  // مدیریت هوشمند دکمه Back بر اساس صفحه جاری
   useBackButton({
     onBack: (isDoubleTap: boolean) => {
-      if (isDoubleTap) {
+      if (!isDoubleTap) return;
+
+      // ۱. اگر کاربر در صفحه لاگین یا ریشه برنامه باشد، با ضربه دوم برنامه بسته می‌شود
+      if (location.pathname === '/' || location.pathname === '/login') {
+        void App.exitApp();
+      } else {
+        // ۲. اگر در صفحات دیگر (مثل چت، پروفایل و...) باشد، به صفحه قبلی برمی‌گردد
         navigate(-1);
       }
     },
@@ -49,7 +57,6 @@ export default function App() {
       <CssBaseline />
       <AppErrorBoundary>
         <ProfileBootstrap>
-          {/* کانتینر اصلی برنامه عیناً مثل نسخه BGO */}
           <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#101014] pt-[var(--sat)] pb-[var(--sab)] pl-[var(--sal)] pr-[var(--sar)]">
             <BrowserRouter>
               <AppContent />
