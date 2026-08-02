@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { CssBaseline } from '@mui/material';
 import { ThemeRoot } from './components/common/ThemeRoot';
@@ -20,23 +20,17 @@ function ProfileBootstrap({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Inner component to execute useBackButton within the BrowserRouter context
-function AppRoutes() {
+function AppContent() {
   const navigate = useNavigate();
 
-  // Handler passed to the back button hook
-  const handleBack = useCallback((isDoubleTap: boolean) => {
-    if (isDoubleTap) {
-      // Navigates back if double-tapped within 2 seconds
-      navigate(-1);
-    } else {
-      // Single tap feedback (you can trigger a toast notification here if desired)
-      console.log('Press back again to exit or go back.');
-    }
-  }, [navigate]);
-
-  // Safely passing the required onBack property
-  useBackButton({ onBack: handleBack });
+  // هندل کردن دکمه Back دقیقاً بر اساس هوک پروژه شما
+  useBackButton({
+    onBack: (isDoubleTap: boolean) => {
+      if (isDoubleTap) {
+        navigate(-1);
+      }
+    },
+  });
 
   return (
     <Routes>
@@ -55,10 +49,10 @@ export default function App() {
       <CssBaseline />
       <AppErrorBoundary>
         <ProfileBootstrap>
-          {/* Main App Container handling Safe Areas and full screen dimensions */}
+          {/* کانتینر اصلی برنامه عیناً مثل نسخه BGO */}
           <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#101014] pt-[var(--sat)] pb-[var(--sab)] pl-[var(--sal)] pr-[var(--sar)]">
             <BrowserRouter>
-              <AppRoutes />
+              <AppContent />
             </BrowserRouter>
           </div>
         </ProfileBootstrap>
