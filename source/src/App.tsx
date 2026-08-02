@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { CssBaseline } from '@mui/material';
-import { App } from '@capacitor/app';
+import { App as CapApp } from '@capacitor/app';
 import { ThemeRoot } from './components/common/ThemeRoot';
 import { LoginPage } from './pages/LoginPage';
 import { ChatPage } from './pages/ChatPage';
@@ -25,16 +25,13 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // مدیریت هوشمند دکمه Back بر اساس صفحه جاری
   useBackButton({
-    onBack: (isDoubleTap: boolean) => {
-      if (!isDoubleTap) return;
-
-      // ۱. اگر کاربر در صفحه لاگین یا ریشه برنامه باشد، با ضربه دوم برنامه بسته می‌شود
+    onBack: () => {
+      // اگر در صفحه اصلی/لاگین بود، با یک ضربه برنامه را می‌بندد
       if (location.pathname === '/' || location.pathname === '/login') {
-        void App.exitApp();
+        void CapApp.exitApp();
       } else {
-        // ۲. اگر در صفحات دیگر (مثل چت، پروفایل و...) باشد، به صفحه قبلی برمی‌گردد
+        // در سایر صفحات، با یک ضربه به صفحه قبل می‌رود
         navigate(-1);
       }
     },
@@ -67,3 +64,4 @@ export default function App() {
     </ThemeRoot>
   );
 }
+ 
