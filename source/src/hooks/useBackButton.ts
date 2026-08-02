@@ -1,29 +1,21 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 interface UseBackButtonOptions {
-  onBack: (isDoubleTap: boolean) => void;
+  onBack: () => void;
 }
 
 export function useBackButton({ onBack }: UseBackButtonOptions) {
-  const lastPressTime = useRef<number>(0);
-
   useEffect(() => {
-    // ۱. تزریق State اولیه به تاریخچه برای جلوگیری از خروج آنی مرورگر
+    // افزودن یک Guard به تاریخچه مرورگر
     window.history.pushState({ pageGuard: true }, '', window.location.href);
 
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();
-      const now = Date.now();
-      const timeDiff = now - lastPressTime.current;
-      const isDoubleTap = timeDiff < 2000;
-
-      if (!isDoubleTap) {
-        lastPressTime.current = now;
-        // هیستوری را مجدداً قفل نگه می‌داریم تا ضربه دوم گرفته شود
-        window.history.pushState({ pageGuard: true }, '', window.location.href);
-      }
-
-      onBack(isDoubleTap);
+      // قفل نگه‌داشتن مجدد تاریخچه برای لیسنر بعدی
+      window.history.pushState({ pageGuard: true }, '', window.location.href);
+      
+      // اجرای بلافاصله اکشن بازگشت با یک بار زدن کلید
+      onBack();
     };
 
     window.addEventListener('popstate', handlePopState);
