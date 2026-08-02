@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect, useCallback } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { CssBaseline } from '@mui/material';
 import { ThemeRoot } from './components/common/ThemeRoot';
 import { LoginPage } from './pages/LoginPage';
@@ -20,10 +20,23 @@ function ProfileBootstrap({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// کامپوننت داخلی برای فعال‌سازی هوک BackButton در محیط BrowserRouter
+// Inner component to execute useBackButton within the BrowserRouter context
 function AppRoutes() {
-  // فعال‌سازی و متصل کردن هوک دکمه بازگشت اندروید به روتر
-  useBackButton();
+  const navigate = useNavigate();
+
+  // Handler passed to the back button hook
+  const handleBack = useCallback((isDoubleTap: boolean) => {
+    if (isDoubleTap) {
+      // Navigates back if double-tapped within 2 seconds
+      navigate(-1);
+    } else {
+      // Single tap feedback (you can trigger a toast notification here if desired)
+      console.log('Press back again to exit or go back.');
+    }
+  }, [navigate]);
+
+  // Safely passing the required onBack property
+  useBackButton({ onBack: handleBack });
 
   return (
     <Routes>
@@ -42,7 +55,7 @@ export default function App() {
       <CssBaseline />
       <AppErrorBoundary>
         <ProfileBootstrap>
-          {/* کانتینر اصلی برنامه برای مدیریت Safe Area و ابعاد کامل صفحه */}
+          {/* Main App Container handling Safe Areas and full screen dimensions */}
           <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#101014] pt-[var(--sat)] pb-[var(--sab)] pl-[var(--sal)] pr-[var(--sar)]">
             <BrowserRouter>
               <AppRoutes />
@@ -53,4 +66,3 @@ export default function App() {
     </ThemeRoot>
   );
 }
- 
