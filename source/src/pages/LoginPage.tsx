@@ -35,7 +35,6 @@ import {
   Typography,
   CircularProgress,
   Link,
-  Snackbar,
 } from '@mui/material';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
@@ -46,6 +45,7 @@ import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import CameraswitchRoundedIcon from '@mui/icons-material/CameraswitchRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import { App as CapApp } from '@capacitor/app';
 import { useSession } from '../store/session';
 import { useProfile } from '../store/profile';
 import { formatFingerprint } from '../services/crypto/crypto';
@@ -80,9 +80,6 @@ export function LoginPage() {
   // Success message for profile imports via QR
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Back button toast state
-  const [backToastMessage, setBackToastMessage] = useState<string | null>(null);
-
   // Remember Last Session — checkbox state and remembered values.
   const REMEMBER_ENABLED_KEY = 'login.rememberEnabled';
   const REMEMBERED_VALUES_KEY = 'login.rememberedValues';
@@ -90,15 +87,13 @@ export function LoginPage() {
   const [rememberLoaded, setRememberLoaded] = useState(false);
 
   // Load the checkbox state and (when enabled) the remembered values
-  // from IndexedDB on mount. The checkbox state itself is always
-  // remembered, even when the values aren't.
+  // from IndexedDB on mount.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const enabledPref = await getPref<boolean>(REMEMBER_ENABLED_KEY);
         if (cancelled) return;
-        // Default state is "enabled" when nothing is stored yet.
         const enabled = enabledPref === null ? true : !!enabledPref;
         setRememberLastSession(enabled);
         if (enabled) {
@@ -124,8 +119,6 @@ export function LoginPage() {
     };
   }, []);
 
-  // When the checkbox toggles, persist its state and either save the
-  // current values or wipe any previously remembered values.
   useEffect(() => {
     if (!rememberLoaded) return;
     void setPref(REMEMBER_ENABLED_KEY, rememberLastSession);
@@ -136,14 +129,11 @@ export function LoginPage() {
         password,
       });
     } else {
-      // Immediately delete any previously stored values.
       void deletePref(REMEMBERED_VALUES_KEY);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rememberLastSession, rememberLoaded]);
 
-  // Whenever the credentials change while "remember" is on, persist
-  // the latest values.
   useEffect(() => {
     if (!rememberLoaded) return;
     if (!rememberLastSession) return;
@@ -163,41 +153,25 @@ export function LoginPage() {
   const scanner = useQrScanner(videoRef as React.RefObject<HTMLVideoElement | null>);
 
   const closeScanner = useCallback(() => {
-    // Always release the camera when the QR reader is dismissed.
     scanner.stop();
     setScannerOpen(false);
     setScanStage('idle');
   }, [scanner]);
 
-  // Back button handler for LoginPage
-  const handleBack = useCallback(
-    (isDoubleTap: boolean) => {
-      if (scannerOpen) {
-        closeScanner();
-        return;
-      }
-
-      if (isDoubleTap) {
-        if ((window as any).Capacitor?.Plugins?.App) {
-          (window as any).Capacitor.Plugins.App.exitApp();
-        } else {
-          window.history.back();
-        }
-      } else {
-        setBackToastMessage('برای خروج دوباره دکمه بازگشت را بزنید');
-      }
-    },
-    [scannerOpen, closeScanner]
-  );
+  // Single-tap Back button handler for LoginPage
+  const handleBack = useCallback(() => {
+    if (scannerOpen) {
+      closeScanner();
+      return;
+    }
+    void CapApp.exitApp();
+  }, [scannerOpen, closeScanner]);
 
   useBackButton({ onBack: handleBack });
 
-  // When the scanner finds a code, parse it and apply.
-  // Supports both room QR codes and profile QR codes.
   useEffect(() => {
     if (!scanner.result) return;
     const parsed = parseQrPayload(scanner.result);
-    // Release the camera immediately on a successful scan
     scanner.stop();
     setScannerOpen(false);
 
@@ -212,7 +186,6 @@ export function LoginPage() {
         setSuccessMessage(null);
       }, 3000);
     } else if (parsed?.kind === 'shc.profile') {
-      // Save profile to trust registry
       void addTrusted({
         fingerprint: parsed.fingerprint,
         label: parsed.nickname,
@@ -258,8 +231,6 @@ export function LoginPage() {
     setScannerOpen(true);
     setScanStage('scanning');
     setScanError(null);
-    // Give the dialog a tick to mount before requesting the camera so
-    // the <video> element exists when the stream attaches.
     setTimeout(() => {
       void scanner.start();
     }, 100);
@@ -473,7 +444,7 @@ export function LoginPage() {
                 position: 'relative',
                 aspectRatio: '1 / 1',
                 background: '#000',
-                borderRadius: 2, // 8px (QR container)
+                borderRadius: 2,
                 overflow: 'hidden',
                 display: 'grid',
                 placeItems: 'center',
@@ -539,26 +510,6 @@ export function LoginPage() {
           <Button onClick={closeScanner}>Close</Button>
         </Stack>
       </Dialog>
-
-      <Snackbar
-        open={!!backToastMessage}
-        autoHideDuration={2000}
-        onClose={() => setBackToastMessage(null)}
-        message={backToastMessage}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        ContentProps={{
-          sx: {
-            backgroundColor: 'rgba(40, 40, 40, 0.95)',
-            color: '#fff',
-            borderRadius: '20px',
-            px: 2.5,
-            py: 0.5,
-            minWidth: 'auto',
-            fontSize: '0.825rem',
-            fontWeight: 500,
-          },
-        }}
-      />
     </Box>
   );
 }
