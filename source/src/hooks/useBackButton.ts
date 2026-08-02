@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 interface UseBackButtonOptions {
   onBack: () => void;
@@ -6,22 +8,26 @@ interface UseBackButtonOptions {
 
 export function useBackButton({ onBack }: UseBackButtonOptions) {
   useEffect(() => {
-    // افزودن یک Guard به تاریخچه مرورگر
-    window.history.pushState({ pageGuard: true }, '', window.location.href);
+    // اگر روی وب هستیم، نیازی به این Listener نیست و مرورگر خودش popstate را مدیریت می‌کند
+    if (!Capacitor.isNativePlatform()) {
+      return;
+    }
 
-    const handlePopState = (e: PopStateEvent) => {
-      e.preventDefault();
-      // قفل نگه‌داشتن مجدد تاریخچه برای لیسنر بعدی
-      window.history.pushState({ pageGuard: true }, '', window.location.href);
-      
-      // اجرای بلافاصله اکشن بازگشت با یک بار زدن کلید
-      onBack();
+    let backListener: { remove: () => void } | null = null;
+
+    const setupListener = async () => {
+      // ثبت Listener رسمی Capacitor برای دکمه برگشت اندروید
+      backListener = await CapApp.addListener('backButton', () => {
+        onBack();
+      });
     };
 
-    window.addEventListener('popstate', handlePopState);
+    void setupListener();
 
     return () => {
-      window.removeEventListener('popstate', handlePopState);
+      if (backListener) {
+        backListener.remove();
+      }
     };
   }, [onBack]);
 }
