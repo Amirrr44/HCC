@@ -1,14 +1,3 @@
-/**
- * User Profile page. Manages local-only data:
- *   - Personal QR code (nick + fingerprint + favorite room)
- *   - Editable nickname
- *   - Permanent fingerprint (read-only)
- *   - Favorite room
- *   - Trusted fingerprint registry (manual entries, see-saw)
- *
- * Nothing on this page is ever sent to the server.
- */
-
 import { useCallback, useEffect, useState } from 'react';
 import {
   AppBar,
@@ -69,18 +58,22 @@ export function ProfilePage() {
   const [addLabel, setAddLabel] = useState('');
   const [snack, setSnack] = useState<string | null>(null);
 
-  // Back button handler for ProfilePage
+  // تابع یکپارچه برای دکمه فیزیکی و دکمه داخل UI
   const handleBack = useCallback(() => {
     if (addOpen) {
       setAddOpen(false);
       return;
     }
-    navigate(-1);
+    // اگر از صفحه چت نیامده بود، امن‌ترین جابجایی رفتن به صفحه اصلی است
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/', { replace: true });
+    }
   }, [addOpen, navigate]);
 
   useBackButton({ onBack: handleBack });
 
-  // Load local identity key on mount even if session is not active
   useEffect(() => {
     let active = true;
     void getOrCreateIdentity().then((id) => {
@@ -93,7 +86,6 @@ export function ProfilePage() {
     };
   }, []);
 
-  // Render the personal QR on mount / whenever profile, session fp or local fp changes
   useEffect(() => {
     const activeFp = sessionIdentityFp || displayFingerprint;
     const activeRawFp = rawFingerprint || activeFp.replace(/[-\s]/g, '');
@@ -114,7 +106,6 @@ export function ProfilePage() {
       .catch(() => setQrUrl(null));
   }, [profile.nickname, profile.favoriteRoom, sessionIdentityFp, displayFingerprint, rawFingerprint]);
 
-  // Load the trusted-fingerprint registry.
   useEffect(() => {
     void listTrusted().then(setTrusted);
   }, []);
@@ -157,7 +148,7 @@ export function ProfilePage() {
     <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <AppBar position="static" color="default" elevation={0}>
         <Toolbar>
-          <IconButton edge="start" onClick={() => navigate(-1)}>
+          <IconButton edge="start" onClick={handleBack}>
             <ArrowBackRoundedIcon />
           </IconButton>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, ml: 1 }}>
@@ -168,7 +159,6 @@ export function ProfilePage() {
 
       <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
         <Stack spacing={2} sx={{ maxWidth: 640, mx: 'auto' }}>
-          {/* QR card */}
           <Card>
             <CardContent>
               <Stack direction="row" spacing={2} alignItems="center">
@@ -176,14 +166,14 @@ export function ProfilePage() {
                   sx={{
                     width: 168,
                     height: 168,
-                    borderRadius: 2, // 8px for QR container
+                    borderRadius: 2,
                     background: 'background.paper',
                     display: 'grid',
                     placeItems: 'center',
                     overflow: 'hidden',
                     border: '1px solid',
                     borderColor: 'divider',
-                    p: 1.25, // ensure internal padding so QR is fully visible
+                    p: 1.25,
                   }}
                 >
                   {qrUrl ? (
@@ -193,7 +183,7 @@ export function ProfilePage() {
                       style={{
                         width: '100%',
                         height: '100%',
-                        borderRadius: 0, // QR image itself is square, no rounded corners
+                        borderRadius: 0,
                         display: 'block',
                       }}
                     />
@@ -217,7 +207,6 @@ export function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Editable fields */}
           <Card>
             <CardContent>
               <Stack spacing={2}>
@@ -265,7 +254,6 @@ export function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Trust registry */}
           <Card>
             <CardContent>
               <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
@@ -334,7 +322,6 @@ export function ProfilePage() {
         </Stack>
       </Box>
 
-      {/* Add dialog */}
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Trust a fingerprint</DialogTitle>
         <DialogContent>
